@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Сложение с единицей — 2 режима</title>
+  <title>Сложение — настраиваемое A (A+1…A+9)</title>
   <style>
     :root{
       --bg:#f7fafc;--card:#fff;--text:#111827;--muted:#6b7280;
@@ -17,12 +17,15 @@
     h1{font-size:28px;margin:0}
     .subtitle{color:var(--muted);margin:6px 0 18px}
 
-    /* Переключатель режимов */
+    .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0 6px}
+    label{font-weight:700}
+    select{padding:8px 10px;border:2px solid #e5e7eb;border-radius:10px;font-size:16px;outline:none}
+    select:focus{border-color:var(--focus);box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+
     .modes{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
     .seg{border:none;border-radius:12px;padding:10px 14px;font-size:15px;cursor:pointer;font-weight:700;background:#111827;color:#fff;opacity:.65;transition:opacity .2s,transform .05s}
     .seg:hover{opacity:.85;transform:translateY(-1px)}
     .seg.active{opacity:1;box-shadow:0 6px 18px rgba(0,0,0,.16)}
-    .seg.alt{background:#374151}
     .seg.rand{background:var(--accent);color:#111}
 
     .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 22px}
@@ -49,7 +52,6 @@
     @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
     footer{margin-top:28px;color:var(--muted);font-size:14px}
 
-    /* Блок рандомного режима */
     .rand-box{background:var(--card);border-radius:16px;padding:18px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
     .rand-row{display:grid;grid-template-columns:1fr 100px;gap:10px;align-items:center}
     .muted{color:var(--muted)}
@@ -59,12 +61,20 @@
 <body>
   <div class="wrap">
     <header>
-      <div class="logo">1+</div>
+      <div class="logo">A+</div>
       <div>
-        <h1>Сложение с единицей</h1>
-        <div class="subtitle">Два режима: «Все примеры» и «Рандом».</div>
+        <h1>Сложение с настраиваемым первым числом</h1>
+        <div class="subtitle">Выбери A (1–9). Режимы: «Все примеры» (A+1…A+9) и «Рандом» (A + случайное).</div>
       </div>
     </header>
+
+    <!-- НАСТРОЙКИ -->
+    <div class="controls">
+      <label for="baseA">Первое число (A):</label>
+      <select id="baseA" aria-label="Выбор первого числа">
+        <!-- заполним из JS -->
+      </select>
+    </div>
 
     <!-- Переключатель режимов -->
     <div class="modes">
@@ -72,20 +82,20 @@
       <button class="seg rand" id="modeRandBtn">Режим: рандом</button>
     </div>
 
-    <!-- Панель управления для режима "все примеры" -->
+    <!-- Панель для "все примеры" -->
     <div class="toolbar" id="toolbarAll">
       <button id="checkAll">Проверить всё</button>
       <button id="clearAll" class="btn-alt">Сбросить ответы</button>
       <button id="showAll" class="btn-show">Показать ответы</button>
     </div>
 
-    <!-- Сетка из 9 карточек (режим "все примеры") -->
+    <!-- Сетка карточек -->
     <section class="grid" id="grid"></section>
 
     <!-- Рандомный режим -->
     <section id="randSection" class="hidden">
-      <div class="rand-box">
-        <div class="expr" id="randExpr">1 + ? = ?</div>
+      <div class="rand-box" id="randBox">
+        <div class="expr" id="randExpr">A + ? = ?</div>
         <div class="rand-row">
           <input id="randInput" type="number" inputmode="numeric" placeholder="Ваш ответ" aria-label="Ответ" />
           <div class="status" id="randStatus">➖</div>
@@ -99,7 +109,7 @@
         </div>
 
         <div class="muted" style="margin-top:8px">
-          Нажмите <b>Enter</b> для проверки. При верном ответе новый пример появится автоматически.
+          Enter — проверка. При верном ответе новый пример появится автоматически.
         </div>
         <div class="muted" style="margin-top:6px">Решено правильно: <b id="randScore">0</b></div>
       </div>
@@ -111,16 +121,28 @@
   </div>
 
   <script>
-    // ===== Общие утилиты =====
+    // ==== Состояние ====
+    let A = 1;                  // выбранное первое число
     const grid = document.getElementById('grid');
     const cards = [];
 
+    // Заполнить селект A = 1..9
+    const baseASelect = document.getElementById('baseA');
+    for (let i=1;i<=9;i++){
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = i;
+      baseASelect.appendChild(opt);
+    }
+    baseASelect.value = '1';
+
+    // ==== Построение карточки ====
     function createCard(b){
-      const answer = 1 + b;
+      const answer = A + b;
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        <div class="expr">1 + ${b} = ?</div>
+        <div class="expr">${A} + ${b} = ?</div>
         <div class="row">
           <input type="number" inputmode="numeric" aria-label="Ответ" placeholder="Ваш ответ" data-answer="${answer}" />
           <div class="status" aria-live="polite">➖</div>
@@ -130,13 +152,21 @@
       return card;
     }
 
-    // Рендерим 9 карточек (режим "все")
-    for (let b = 1; b <= 9; b++){
-      const c = createCard(b);
-      grid.appendChild(c);
-      cards.push(c);
+    // Перестроить сетку под текущее A
+    function renderAllCards(){
+      grid.innerHTML = '';
+      cards.length = 0;
+      for (let b = 1; b <= 9; b++){
+        const c = createCard(b);
+        grid.appendChild(c);
+        cards.push(c);
+      }
+      // автофокус
+      const first = cards[0]?.querySelector('input');
+      if (first) first.focus();
     }
 
+    // ==== Проверка карточек ====
     function checkCard(card, shakeOnFail=false){
       const input = card.querySelector('input');
       const status = card.querySelector('.status');
@@ -172,8 +202,6 @@
         checkCard(e.target.closest('.card'));
       }
     });
-
-    // Enter = проверить текущую карточку
     grid.addEventListener('keydown', (e)=>{
       if (e.key === 'Enter' && e.target.matches('input[type="number"]')){
         checkCard(e.target.closest('.card'), true);
@@ -199,7 +227,7 @@
         status.textContent = '➖';
         status.className = 'status';
       }
-      cards[0].querySelector('input').focus();
+      cards[0]?.querySelector('input')?.focus();
     });
 
     document.getElementById('showAll').addEventListener('click', ()=>{
@@ -208,30 +236,28 @@
       }
     });
 
-    // Автофокус при загрузке
-    window.addEventListener('DOMContentLoaded', ()=>{
-      cards[0].querySelector('input').focus();
-    });
+    // Автопостроение при загрузке
+    window.addEventListener('DOMContentLoaded', renderAllCards);
 
-    // ===== Режим "Рандом" =====
+    // ==== Режим "Рандом" ====
     const randSection = document.getElementById('randSection');
     const randExpr = document.getElementById('randExpr');
     const randInput = document.getElementById('randInput');
     const randStatus = document.getElementById('randStatus');
     const randAnsEl = document.getElementById('randAns');
     const randScoreEl = document.getElementById('randScore');
-    let randB = 1;           // текущее случайное второе число (1..9)
-    let randRight = 2;       // правильный ответ (1 + randB)
-    let randScore = 0;       // счётчик правильных
+    const randBox = document.getElementById('randBox');
 
-    function randomInt(min, max){ // включительно
-      return Math.floor(Math.random()*(max-min+1)) + min;
-    }
+    let randB = 1;
+    let randRight = A + randB;
+    let randScore = 0;
+
+    function randomInt(min, max){ return Math.floor(Math.random()*(max-min+1)) + min; }
 
     function nextRandomTask(){
       randB = randomInt(1,9);
-      randRight = 1 + randB;
-      randExpr.textContent = `1 + ${randB} = ?`;
+      randRight = A + randB;
+      randExpr.textContent = `${A} + ${randB} = ?`;
       randAnsEl.textContent = '—';
       randStatus.textContent = '➖';
       randStatus.className = 'status';
@@ -255,7 +281,6 @@
         randInput.style.borderColor = 'var(--ok)';
         randScore += 1;
         randScoreEl.textContent = String(randScore);
-        // Небольшая пауза, чтобы увидеть "✓", затем новый пример
         setTimeout(nextRandomTask, 600);
         return true;
       } else {
@@ -263,7 +288,7 @@
         randStatus.className = 'status bad';
         randInput.style.borderColor = 'var(--bad)';
         if (shakeOnFail){
-          randExpr.parentElement.classList.remove('shake'); void randExpr.parentElement.offsetWidth; randExpr.parentElement.classList.add('shake');
+          randBox.classList.remove('shake'); void randBox.offsetWidth; randBox.classList.add('shake');
         }
         return false;
       }
@@ -274,32 +299,24 @@
     document.getElementById('randShow').addEventListener('click', ()=>{
       randAnsEl.textContent = String(randRight);
     });
+    randInput.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') checkRandom(true); });
 
-    randInput.addEventListener('keydown', (e)=>{
-      if (e.key === 'Enter') checkRandom(true);
-    });
-
-    // ===== Переключение режимов =====
+    // ==== Переключение режимов ====
     const modeAllBtn = document.getElementById('modeAllBtn');
     const modeRandBtn = document.getElementById('modeRandBtn');
     const toolbarAll = document.getElementById('toolbarAll');
 
     function switchMode(mode){ // 'all' | 'rand'
       const isAll = (mode === 'all');
-      // Кнопки-переключатели
       modeAllBtn.classList.toggle('active', isAll);
       modeRandBtn.classList.toggle('active', !isAll);
-
-      // Показ нужных секций
       grid.classList.toggle('hidden', !isAll);
       toolbarAll.classList.toggle('hidden', !isAll);
       randSection.classList.toggle('hidden', isAll);
 
-      // Фокус и подготовка
       if (isAll){
-        cards[0].querySelector('input').focus();
+        cards[0]?.querySelector('input')?.focus();
       } else {
-        // При первом входе в рандом — сбрасываем счёт и даём задачу
         randScore = 0;
         randScoreEl.textContent = '0';
         nextRandomTask();
@@ -308,6 +325,17 @@
 
     modeAllBtn.addEventListener('click', ()=>switchMode('all'));
     modeRandBtn.addEventListener('click', ()=>switchMode('rand'));
+
+    // ==== Реакция на смену A ====
+    baseASelect.addEventListener('change', ()=>{
+      A = Number(baseASelect.value);
+      // перестраиваем «все примеры»
+      renderAllCards();
+      // обновляем рандомное выражение/ответ и сбрасываем счёт
+      randScore = 0;
+      randScoreEl.textContent = '0';
+      if (!randSection.classList.contains('hidden')) nextRandomTask();
+    });
   </script>
 </body>
 </html>
