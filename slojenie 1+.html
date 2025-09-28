@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Сложение с единицей — тренажёр (1+1…1+9)</title>
+  <style>
+    /* ===== БАЗОВЫЙ СТИЛЬ (без внешних библиотек) ===== */
+    :root {
+      --bg: #f7fafc;         /* светлый фон */
+      --card: #ffffff;       /* фон карточек */
+      --text: #111827;       /* основной текст */
+      --muted: #6b7280;      /* вспомогательный текст */
+      --ok: #16a34a;         /* зелёный — верно */
+      --bad: #dc2626;        /* красный — ошибка */
+      --focus: #2563eb;      /* синий — фокус */
+      --accent: #f59e0b;     /* фирменный акцент */
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .logo {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #fb923c);
+      display: grid; place-items: center;
+      color: #fff; font-weight: 800; font-size: 22px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.08);
+      user-select: none;
+    }
+
+    h1 { font-size: 28px; margin: 0; }
+    .subtitle { color: var(--muted); margin: 6px 0 18px; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 22px;
+    }
+    button {
+      border: none; border-radius: 12px; padding: 12px 16px;
+      font-size: 16px; cursor: pointer; font-weight: 600;
+      background: #111827; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.12);
+      transition: transform .05s ease, box-shadow .2s ease, opacity .2s;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,.18); }
+    button:active { transform: translateY(0); }
+
+    .btn-alt { background: #374151; }
+    .btn-show { background: var(--accent); color: #111; }
+
+    .grid {
+      display: grid; gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      transition: box-shadow .2s ease, transform .1s ease;
+    }
+    .card:focus-within { box-shadow: 0 10px 26px rgba(37, 99, 235, .18); }
+
+    .expr { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+
+    .row {
+      display: grid; grid-template-columns: 1fr 64px; gap: 10px; align-items: center;
+    }
+
+    input[type="number"] {
+      width: 100%; font-size: 20px; padding: 10px 12px; border-radius: 12px; border: 2px solid #e5e7eb;
+      outline: none; transition: border-color .2s ease, box-shadow .2s ease;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]:focus { border-color: var(--focus); box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    .status { text-align: center; font-weight: 800; font-size: 18px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .shake { animation: shake .25s; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      75% { transform: translateX(3px); }
+    }
+
+    footer { margin-top: 28px; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">1+</div>
+      <div>
+        <h1>Сложение с единицей</h1>
+        <div class="subtitle">Реши примеры 1+1 … 1+9. Пиши ответ — зелёная галочка появится сама.</div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button id="checkAll">Проверить всё</button>
+      <button id="clearAll" class="btn-alt">Сбросить ответы</button>
+      <button id="showAll" class="btn-show">Показать ответы</button>
+    </div>
+
+    <section class="grid" id="grid">
+      <!-- Карточки создаём из JS, чтобы меньше дублировать код -->
+    </section>
+
+    <footer>
+      Подсказка: можно нажать <b>Tab</b> для перехода к следующему примеру, <b>Enter</b> — проверка текущего.
+    </footer>
+  </div>
+
+  <script>
+    // ================== ЛОГИКА ТРЕНАЖЁРА ==================
+    // Мы генерируем примеры 1+1, 1+2, …, 1+9.
+
+    /**
+     * Создаём карточку примера.
+     * @param {number} b - второе число (от 1 до 9)
+     */
+    function createCard(b) {
+      const answer = 1 + b; // правильный ответ
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="expr">1 + ${b} = ?</div>
+        <div class="row">
+          <input type="number" inputmode="numeric" aria-label="Ответ" placeholder="Ваш ответ" data-answer="${answer}" />
+          <div class="status" aria-live="polite">➖</div>
+        </div>
+        <div class="hint">Правильный ответ: <span class="ans" hidden>${answer}</span></div>
+      `;
+      return card;
+    }
+
+    // Рендерим 9 карточек в сетку
+    const grid = document.getElementById('grid');
+    const cards = [];
+    for (let b = 1; b <= 9; b++) {
+      const c = createCard(b);
+      grid.appendChild(c);
+      cards.push(c);
+    }
+
+    /**
+     * Проверяем одну карточку.
+     * @param {HTMLElement} card
+     * @param {boolean} shakeOnFail — трясти при ошибке
+     */
+    function checkCard(card, shakeOnFail = false) {
+      const input = card.querySelector('input');
+      const status = card.querySelector('.status');
+      const right = Number(input.dataset.answer);
+      const val = Number(input.value);
+
+      // Пустое поле — нейтрально
+      if (input.value === '') {
+        status.textContent = '➖';
+        status.className = 'status';
+        input.style.borderColor = '#e5e7eb';
+        return false;
+      }
+
+      if (val === right) {
+        status.textContent = '✓';
+        status.className = 'status ok';
+        input.style.borderColor = 'var(--ok)';
+        return true;
+      } else {
+        status.textContent = '✗';
+        status.className = 'status bad';
+        input.style.borderColor = 'var(--bad)';
+        if (shakeOnFail) {
+          card.classList.remove('shake');
+          // перезапускаем анимацию тряски
+          void card.offsetWidth; 
+          card.classList.add('shake');
+        }
+        return false;
+      }
+    }
+
+    // Слушаем ввод: проверка «на лету»
+    grid.addEventListener('input', (e) => {
+      if (e.target.matches('input[type="number"]')) {
+        const card = e.target.closest('.card');
+        checkCard(card);
+      }
+    });
+
+    // Enter = проверить текущую карточку
+    grid.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.matches('input[type="number"]')) {
+        const card = e.target.closest('.card');
+        checkCard(card, true);
+      }
+    });
+
+    // Кнопка «Проверить всё»
+    document.getElementById('checkAll').addEventListener('click', () => {
+      let allRight = true;
+      for (const card of cards) {
+        const ok = checkCard(card, true);
+        if (!ok) allRight = false;
+      }
+      if (allRight) {
+        alert('Молодец! Все ответы верные!');
+      }
+    });
+
+    // Кнопка «Сбросить ответы»
+    document.getElementById('clearAll').addEventListener('click', () => {
+      for (const card of cards) {
+        const input = card.querySelector('input');
+        const status = card.querySelector('.status');
+        input.value = '';
+        input.style.borderColor = '#e5e7eb';
+        status.textContent = '➖';
+        status.className = 'status';
+      }
+      // Фокус в первый пример
+      const first = cards[0].querySelector('input');
+      first.focus();
+    });
+
+    // Кнопка «Показать ответы»
+    document.getElementById('showAll').addEventListener('click', () => {
+      for (const card of cards) {
+        const ansEl = card.querySelector('.ans');
+        ansEl.hidden = false; // показываем правильные ответы
+      }
+    });
+
+    // Автофокус в первом поле при загрузке
+    window.addEventListener('DOMContentLoaded', () => {
+      const first = cards[0].querySelector('input');
+      first.focus();
+    });
+  </script>
+</body>
+</html>
